@@ -1,0 +1,11 @@
+
+# Configuration File
+
+data_path: "./data"
+model_path: "./models"
+log_path: "./logs"
+
+training:
+  epochs: 50
+  batch_size: 32
+  learning_rate: 0.001

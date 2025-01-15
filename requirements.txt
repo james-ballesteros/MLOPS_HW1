@@ -1,0 +1,21 @@
+# Dagster and Orchestration
+dagster
+dagit
+dagster-docker
+
+# Data Processing
+pandas
+numpy
+pyyaml
+
+# Machine Learning
+scikit-learn
+
+# Logging and Utilities
+loguru
+
+# Web Deployment (API for predictions)
+flask
+
+# Testing
+pytest
