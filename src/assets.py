@@ -186,3 +186,55 @@ def evaluate_model(train_model, test_data):
         "mean_absolute_error": mae,
         "r2_score": r2,
     }
+
+@asset(group_name=asset_group_name, compute_kind="pandas")
+def sample_new_data():
+    """
+    Provide a sample dataset for making predictions.
+
+    Returns:
+        pd.DataFrame: Sample new data for prediction.
+    """
+    # Sample new data
+    data = {
+        "CO(GT)": [0.4569845515154895, 0.4702654125698419, 0.4699875462156584],
+        "PT08.S1(CO)": [0.9398556321215549, 0.9404656548512564, 0.9581202698751227],
+        "NMHC(GT)": [2.0654865655141884, 2.2984562154862575, 2.2995541211544115],
+        "C6H6(GT)": [0.2265465123221584, 0.2415255841412112, 0.2658441521212125],
+        "PT08.S2(NMHC)": [0.4214556158791231, 0.4359874512154415, 0.4702125488187941],
+        "NOx(GT)": [-0.0120226544464471, -0.0113945110121187, -0.0099987878454511],
+        "PT08.S3(NOx)": [0.7188741154445056, 0.7845126854852165, 0.8954154112898122],
+        "NO2(GT)": [0.4047487273862507, 0.4278741233659651, 0.4587454133952128],
+        "PT08.S4(NO2)": [0.5871641709647203, 0.6198712532587941, 0.7112598412148558],
+        "PT08.S5(O3)": [0.5949947793741827, 0.6215410254515845, 0.6994541479941121],
+        "T": [0.078999725, 0.083215448, 0.092659841],
+        "RH": [0.1789476103332271, 0.1821121514188952, 0.2125689874225485],
+        "AH": [0.176064487, 0.189985544, 0.209545541],
+        "CO_Norm": [2.0784524509213695, 2.4725988987452187, 2.8455245709213695],
+    }
+    return pd.DataFrame(data)
+
+@asset(group_name=asset_group_name, compute_kind="scikit-learn")
+def make_predictions(train_model, sample_new_data):
+    """
+    Use the trained model to make predictions on new sample data.
+
+    Args:
+        train_model (RandomForestRegressor): Trained regression model.
+        sample_new_data (pd.DataFrame): New data for which predictions need to be made.
+
+    Returns:
+        pd.DataFrame: Predictions alongside the input data.
+    """
+    # Ensure the sample data is not empty
+    if sample_new_data.empty:
+        raise ValueError("The sample data is empty. Please provide valid input.")
+
+    # Make predictions
+    predictions = train_model.predict(sample_new_data)
+
+    # Combine the input data with predictions
+    prediction_results = sample_new_data.copy()
+    prediction_results["Predictions"] = predictions
+
+    return prediction_results
