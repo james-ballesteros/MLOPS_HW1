@@ -1,0 +1,2 @@
+# MinIO Dependencies
+minio==7.2.5

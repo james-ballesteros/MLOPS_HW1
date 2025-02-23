@@ -1,0 +1,7 @@
+FROM minio/minio:latest
+
+WORKDIR /data
+
+RUN microdnf install -y curl grep bash && microdnf clean all
+
+CMD ["server", "/data", "--console-address", ":9001"]
