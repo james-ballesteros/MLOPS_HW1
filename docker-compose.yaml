@@ -5,8 +5,6 @@ services:
     restart: always
     expose:
       - "${PG_PORT}"
-    ports:
-      - "${PG_PORT}:5432"
     networks:
       - backend-network
     environment:
@@ -16,7 +14,7 @@ services:
     volumes:
       - ./postgres_data:/var/lib/postgresql/data/
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${PG_USER} -d ${PG_DATABASE}"]
+      test: ["CMD", "pg_isready", "-p", "${PG_PORT}", "-U", "${PG_USER}"]
       interval: 5s
       timeout: 5s
       retries: 3
@@ -49,8 +47,7 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
-
-  mlflow:
+  tracking_server:
     build: ./mlflow
     image: mlflow_server
     container_name: mlflow_server
@@ -66,16 +63,16 @@ services:
     environment:
       - AWS_ACCESS_KEY_ID=${MINIO_ACCESS_KEY}
       - AWS_SECRET_ACCESS_KEY=${MINIO_SECRET_ACCESS_KEY}
-      - MLFLOW_S3_ENDPOINT_URL=http://s3:${MINIO_PORT}
+      - MLFLOW_S3_ENDPOINT_URL=${MINIO_CONSOLE_ADDRESS}:${MINIO_PORT}
       - MLFLOW_S3_IGNORE_TLS=true
     command: >
       mlflow server
       --backend-store-uri postgresql://${PG_USER}:${PG_PASSWORD}@db:${PG_PORT}/${PG_DATABASE}
       --host 0.0.0.0
       --serve-artifacts
-      --artifacts-destination s3://${MLFLOW_BUCKET_NAME}
+      --artifacts-destination {MINIO_CONSOLE_ADDRESS}://${MLFLOW_BUCKET_NAME}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -83,24 +80,25 @@ services:
       - ./feature_engineering.csv:/home/appuser/feature_engineering.csv
 
   fastapi:
-    build:
-      context: ./fastapi
-      dockerfile: Dockerfile
-      args:
-        - PYTHON_VERSION=3.10
-    platform: linux/amd64
-    container_name: mlflow_fastapi
+    build: ./fastapi
+    image: fastapi_server
+    container_name: fastapi_server
+    restart: always
+    depends_on:
+      - db
+      - s3
+      - tracking_server
     ports:
-      - "8000:8000"
+      - "${FASTAPI_PORT}:8000"
     networks:
       - backend-network
-    depends_on:
-      - s3
-      - db
-      - mlflow
-    volumes:
-      - ./fastapi:/home/appuser
-    command: ["/home/appuser/venv/bin/uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      - AWS_ACCESS_KEY_ID=${MINIO_ACCESS_KEY}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_SECRET_ACCESS_KEY}
+      - MLFLOW_S3_ENDPOINT_URL=http://s3:${MINIO_PORT}
+      - MLFLOW_S3_IGNORE_TLS=true
+      - MLFLOW_TRACKING_URI=http://mlflow_server:${MLFLOW_PORT}  # ✅ Fix here
+    command: ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "api:app", "--bind", "0.0.0.0:8000"]
 
 networks:
   frontend-network:

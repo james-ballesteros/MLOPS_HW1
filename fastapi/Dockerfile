@@ -1,12 +1,19 @@
-FROM --platform=linux/amd64 python:3.10-slim-bullseye
+# FastAPI Dockerfile
+FROM python:3.9
 
-RUN useradd -m appuser
-WORKDIR /home/appuser
+WORKDIR /code
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates git && apt-get clean && rm -rf /var/lib/apt/lists/*
+# Copy dependencies file
+COPY ./requirements.txt /code/requirements.txt
 
-RUN python -m venv /home/appuser/venv
-COPY requirements.txt /home/appuser/requirements.txt
-RUN /home/appuser/venv/bin/pip install --no-cache-dir -r /home/appuser/requirements.txt
+# Install dependencies
+RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
-RUN ls -l /home/appuser/venv/bin/uvicorn
+# Copy all files from the fastapi folder
+COPY . /code
+
+# Expose FastAPI port
+EXPOSE 8000
+
+# Run FastAPI with Gunicorn
+CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "api:app", "--bind", "0.0.0.0:8000"]

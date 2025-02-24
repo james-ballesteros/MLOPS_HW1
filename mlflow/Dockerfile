@@ -5,7 +5,7 @@ RUN useradd -m appuser
 WORKDIR /home/appuser
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl ca-certificates git && \
+    apt-get install -y --no-install-recommends curl ca-certificates && \
     # Install UV as appuser
     su - appuser -c "curl -sSL https://astral.sh/uv/install.sh | sh" && \
     # Remove build dependencies and clean up
@@ -20,11 +20,12 @@ USER appuser
 RUN uv venv -p python3.12 venv
 ENV PATH="/home/appuser/venv/bin:$PATH"
 
-COPY train_and_register.py /home/appuser/train_and_register.py
-
 RUN uv pip install --no-cache \
     mlflow[extras]==2.20.2 \
     psycopg2-binary==2.9.10 \
     boto3==1.36.21 \
     cryptography==44.0.1 \
-    pymysql==1.1.1
+    pymysql==1.1.1 \
+    scikit-learn==1.6.1 \
+    loguru==0.7.3 \
+    xgboost==2.1.4
