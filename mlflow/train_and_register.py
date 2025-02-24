@@ -4,28 +4,38 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
+from mlflow.tracking import MlflowClient
 
-# Setup MLflow tracking server
-mlflow.set_tracking_uri("http://127.0.0.1:5000")
+# 1️⃣ **Set MLflow Tracking URI** (Ensure this matches your MLflow server)
+mlflow.set_tracking_uri("http://mlflow_server:5050")
+
+# 2️⃣ **Set experiment name**
 experiment_name = "AirQuality_Model_Training"
+
+# Check if experiment exists, create if not
+client = MlflowClient()
+existing_experiments = [exp.name for exp in client.search_experiments()]
+if experiment_name not in existing_experiments:
+    mlflow.create_experiment(experiment_name)
 mlflow.set_experiment(experiment_name)
 
-# Load Data
+# 3️⃣ **Load Data**
 df = pd.read_csv("/home/appuser/feature_engineering.csv", sep=",", decimal=".")
 
-# Features & Target assignment
+# 4️⃣ **Features & Target assignment**
 X = df.select_dtypes(include=["number"]).drop(columns=["CO(GT)"])  # Drop target column
 y = df["CO(GT)"]  # Target variable
 
 # Ensure the dataset contains only numeric values before training
 assert X.select_dtypes(exclude=["number"]).empty, "Non-numeric columns detected in X!"
 
-# Train/Test Split
+# 5️⃣ **Train/Test Split**
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Try different model configurations
-best_r2 = -1  # Track best R2 score
+# 6️⃣ **Train multiple models and log the best one**
+best_r2 = -1
 best_run_id = None
+model_name = "best_air_quality_model"
 
 for n_estimators in [50, 100, 150]:  # Try different hyperparameters
     with mlflow.start_run():
@@ -57,8 +67,17 @@ for n_estimators in [50, 100, 150]:  # Try different hyperparameters
 
 print(f"Best Model Run ID: {best_run_id} with R2 Score: {best_r2}")
 
-# **Register the best model**
+# 7️⃣ **Register the best model**
 if best_run_id:
     model_uri = f"runs:/{best_run_id}/model"
-    mlflow.register_model(model_uri, "best_air_quality_model")
+    registered_model = mlflow.register_model(model_uri, model_name)
     print("Best model registered successfully!")
+
+    # 8️⃣ **Move best model to "Production" stage**
+    latest_version = client.get_latest_versions(model_name, stages=["None"])[0].version
+    client.transition_model_version_stage(
+        name=model_name,
+        version=latest_version,
+        stage="Production"
+    )
+    print(f"Model version {latest_version} transitioned to Production.")

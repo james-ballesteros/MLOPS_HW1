@@ -20,6 +20,8 @@ USER appuser
 RUN uv venv -p python3.12 venv
 ENV PATH="/home/appuser/venv/bin:$PATH"
 
+COPY train_and_register.py /home/appuser/train_and_register.py
+
 RUN uv pip install --no-cache \
     mlflow[extras]==2.20.2 \
     psycopg2-binary==2.9.10 \
